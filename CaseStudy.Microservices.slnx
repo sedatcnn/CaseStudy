@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/Gateway/" />
+  <Folder Name="/Gateway/ApiGateway/" />
+  <Folder Name="/Services/" />
+  <Folder Name="/Services/AuthService/">
+    <Project Path="src/Services/AuthService/AuthService.API/AuthService.API/AuthService.API.csproj" />
+    <Project Path="src/Services/AuthService/AuthService.Application/AuthService.Application/AuthService.Application.csproj" />
+    <Project Path="src/Services/AuthService/AuthService.Domain/AuthService.Domain/AuthService.Domain.csproj" />
+    <Project Path="src/Services/AuthService/AuthService.Infrastructure/ClassLibrary1/AuthService.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/Services/LogService/" />
+  <Folder Name="/Services/ProductService/" />
+  <Project Path="docker-compose.dcproj">
+    <Build />
+  </Project>
+</Solution>

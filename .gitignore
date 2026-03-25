@@ -1,0 +1,42 @@
+## .NET / C#
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.swp
+*~
+
+## Sensitive — 12 Faktör #3: Config asla repoda olmaz
+.env
+*.pfx
+*.p12
+secrets.json
+appsettings.Production.json
+
+## Publish outputs
+publish/
+/out
+
+## Test results
+TestResults/
+coverage/
+*.trx
+*.coverage
+
+## NuGet
+.nuget/
+*.nupkg
+packages/
+
+## Docker
+docker-compose.override.yml
+
+## OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+## Logs
+*.log
+logs/
