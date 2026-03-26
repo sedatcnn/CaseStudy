@@ -1,6 +1,7 @@
 <Solution>
-  <Folder Name="/Gateway/" />
-  <Folder Name="/Gateway/ApiGateway/" />
+  <Folder Name="/Gateway/">
+    <Project Path="src/Gateway/ApiGateway/ApiGateway.csproj" Id="11eeab5b-594e-4677-be5b-2efa6feaff6e" />
+  </Folder>
   <Folder Name="/Services/" />
   <Folder Name="/Services/AuthService/">
     <Project Path="src/Services/AuthService/AuthService.API/AuthService.API/AuthService.API.csproj" />
@@ -8,8 +9,18 @@
     <Project Path="src/Services/AuthService/AuthService.Domain/AuthService.Domain/AuthService.Domain.csproj" />
     <Project Path="src/Services/AuthService/AuthService.Infrastructure/ClassLibrary1/AuthService.Infrastructure.csproj" />
   </Folder>
-  <Folder Name="/Services/LogService/" />
-  <Folder Name="/Services/ProductService/" />
+  <Folder Name="/Services/LogService/">
+    <Project Path="src/Services/LogService/LogService.API/LogService.API.csproj" Id="e588697b-5972-4aa3-be3a-58d577ccd010" />
+    <Project Path="src/Services/LogService/LogService.Application/LogService.Application.csproj" Id="01d970d0-94a0-43e1-bc9d-49cdcfcb51aa" />
+    <Project Path="src/Services/LogService/LogService.Domain/LogService.Domain.csproj" Id="d2eb1552-072c-4da1-bbd9-65840b697dbf" />
+    <Project Path="src/Services/LogService/LogService.Infrastructure/LogService.Infrastructure.csproj" Id="b32be806-cfa8-4036-81fa-29f5d1c04aa0" />
+  </Folder>
+  <Folder Name="/Services/ProductService/">
+    <Project Path="src/Services/ProductService/ProductService.API/ProductService.API.csproj" Id="7db7a9ab-a4d1-42e8-b0b6-d80969f3369b" />
+    <Project Path="src/Services/ProductService/ProductService.Application/ProductService.Application.csproj" Id="230fbe9f-f190-4faf-a123-800e990aa446" />
+    <Project Path="src/Services/ProductService/ProductService.Domain/ProductService.Domain.csproj" Id="f3011914-1b87-4183-a5a1-64bcfba2edd4" />
+    <Project Path="src/Services/ProductService/ProductService.Infrastructure/ProductService.Infrastructure.csproj" Id="755b3993-47ad-4717-8862-d6884a016ebf" />
+  </Folder>
   <Project Path="docker-compose.dcproj">
     <Build />
   </Project>
