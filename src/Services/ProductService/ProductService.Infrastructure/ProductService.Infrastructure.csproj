@@ -17,10 +17,4 @@
     <ProjectReference Include="..\ProductService.Application\ProductService.Application.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Cache\" />
-    <Folder Include="Messaging\" />
-    <Folder Include="Repositories\" />
-  </ItemGroup>
-
 </Project>

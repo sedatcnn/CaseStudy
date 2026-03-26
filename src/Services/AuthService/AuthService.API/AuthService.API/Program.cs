@@ -134,7 +134,7 @@ app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Auth Servic
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
-
+app.MapGet("/", () => Results.Redirect("/swagger/index.html")).ExcludeFromDescription();
 // Dockerfile içindeki healthcheck komutunun buraya istek atması için:
 app.MapHealthChecks("/health");
 

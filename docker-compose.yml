@@ -1,5 +1,6 @@
-services:
+version: "3.9"
 
+services:
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: kayra-sqlserver
@@ -12,12 +13,38 @@ services:
     volumes:
       - sqlserver_data:/var/opt/mssql
     healthcheck:
-      test: ["CMD", "/opt/mssql-tools18/bin/sqlcmd",
-             "-S", "localhost", "-U", "sa", "-P", "${SQL_PASSWORD}",
-             "-C", "-Q", "SELECT 1"]
+      test: ["CMD", "/opt/mssql-tools18/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "${SQL_PASSWORD}", "-C", "-Q", "SELECT 1"]
       interval: 10s
       timeout: 5s
       retries: 10
+    networks:
+      - kayra-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: kayra-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 5
+    networks:
+      - kayra-network
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: kayra-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: "${RABBITMQ_USER}"
+      RABBITMQ_DEFAULT_PASS: "${RABBITMQ_PASS}"
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 10s
+      retries: 5
     networks:
       - kayra-network
 
@@ -32,7 +59,6 @@ services:
       - JwtSettings__SecretKey=${JWT_SECRET_KEY}
       - JwtSettings__Issuer=KayraExport.AuthService
       - JwtSettings__Audience=KayraExport.Clients
-      - JwtSettings__ExpiryMinutes=60
       - SeedAdmin__Email=${SEED_ADMIN_EMAIL}
       - SeedAdmin__Password=${SEED_ADMIN_PASSWORD}
     ports:
@@ -40,12 +66,33 @@ services:
     depends_on:
       sqlserver:
         condition: service_healthy
+    networks:
+      - kayra-network
 
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
+  product-service:
+    build:
+      context: .
+      dockerfile: src/Services/ProductService/ProductService.API/Dockerfile
+    container_name: kayra-product-service
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=ProductDb;User Id=sa;Password=${SQL_PASSWORD};TrustServerCertificate=True;
+      - ConnectionStrings__Redis=redis:6379
+      - JwtSettings__SecretKey=${JWT_SECRET_KEY}
+      - JwtSettings__Issuer=KayraExport.AuthService
+      - JwtSettings__Audience=KayraExport.Clients
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Username=${RABBITMQ_USER}
+      - RabbitMQ__Password=${RABBITMQ_PASS}
+    ports:
+      - "5002:8080"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     networks:
       - kayra-network
 
@@ -55,3 +102,5 @@ networks:
 
 volumes:
   sqlserver_data:
+  redis_data:
+  rabbitmq_data:
