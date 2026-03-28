@@ -9,8 +9,9 @@ using ProductService.Infrastructure.Persistence;
 using ProductService.Infrastructure.Repositories;
 using RabbitMQ.Client;
 using StackExchange.Redis;
+using System.Security.Claims;
 using System.Text;
-
+System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 var builder = WebApplication.CreateBuilder(args);
 
 // --- Veritabanı ---
@@ -38,29 +39,35 @@ builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(ProductService.Application.Interfaces.ICacheService).Assembly));
 
 // --- Auth & JWT ---
+var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(opt => {
-        opt.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = builder.Configuration["JwtSettings:Issuer"],
-            ValidAudience = builder.Configuration["JwtSettings:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JwtSettings:SecretKey"]!))
-        };
-    });
+.AddJwtBearer(opt => {
+    opt.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = builder.Configuration["JwtSettings:Issuer"],
+        ValidAudience = builder.Configuration["JwtSettings:Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JwtSettings:SecretKey"]!)),
 
+        // AGA BURAYI BÖYLE YAP: Link yazmak yerine ClaimTypes kullan
+        RoleClaimType = System.Security.Claims.ClaimTypes.Role,
+        NameClaimType = System.Security.Claims.ClaimTypes.NameIdentifier
+    };
+});
+
+// BURASI DA ÇOK ÖNEMLİ: Policy adını ve rollerini temizle
 builder.Services.AddAuthorization(opt => {
-    opt.AddPolicy("ManagerOrAdmin", p => p.RequireRole("Manager", "Admin"));
+    opt.AddPolicy("ManagerOrAdmin", p => p.RequireRole("Admin", "Manager"));
 });
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c => {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "Product Service", Version = "v1" });
-    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme // BURAYI "Bearer" YAPTIK
     {
         Name = "Authorization",
         Type = SecuritySchemeType.ApiKey,
@@ -70,7 +77,17 @@ builder.Services.AddSwaggerGen(c => {
         Description = "JWT Token giriniz. Örnek: Bearer {token}"
     });
     c.AddSecurityRequirement(new OpenApiSecurityRequirement {
-        { new OpenApiSecurityScheme { Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" } }, new string[] {} }
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer" // BURASI YUKARIDAKİYLE AYNI OLMALI
+                }
+            },
+            new string[] {}
+        }
     });
 });
 
@@ -85,6 +102,7 @@ using (var scope = app.Services.CreateScope())
 
 app.UseSwagger();
 app.UseSwaggerUI();
+app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

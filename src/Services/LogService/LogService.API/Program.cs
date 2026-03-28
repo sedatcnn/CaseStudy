@@ -1,23 +1,33 @@
+using LogService.Application.Interfaces;
+using LogService.Infrastructure.Consumers;
+using LogService.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+using RabbitMQ.Client;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// 1. Veritabanı (MSSQL)
+builder.Services.AddDbContext<LogDbContext>(opt =>
+    opt.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddScoped<ILogRepository, SqlLogRepository>();
+
+// 2. RabbitMQ Bağlantısı
+builder.Services.AddSingleton<IConnection>(_ => {
+    var factory = new ConnectionFactory { HostName = "rabbitmq" };
+    return factory.CreateConnectionAsync().GetAwaiter().GetResult();
+});
+
+// 3. Arka Plan Dinleyicisi
+builder.Services.AddHostedService<ProductEventConsumer>();
+
+// 4. JWT Ayarları (ProductService ile aynı olsun)
+// ... (Jwt kodların)
 
 builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
-
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
-
-app.UseHttpsRedirection();
-
+app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
-
 app.Run();

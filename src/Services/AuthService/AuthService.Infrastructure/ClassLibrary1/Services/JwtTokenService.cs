@@ -8,11 +8,6 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace AuthService.Infrastructure.Services;
 
-/// <summary>
-/// JWT token üretimi ve doğrulaması.
-/// SRP: Yalnızca token işlemleri — kullanıcı yönetimi başka serviste.
-/// DIP: ITokenService arayüzünü implemente eder, üst katmanlar bu somut sınıfı bilmez.
-/// </summary>
 public class JwtTokenService : ITokenService
 {
     private readonly IConfiguration _config;
@@ -31,19 +26,23 @@ public class JwtTokenService : ITokenService
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-        // Claims — Role-Based ve Policy-Based Authorization için zengin claim seti
+        // ÖNEMLİ: Microsoft'un uzun URI formatını KULLANMA
+        // Token'a kısa "role" olarak ekle
         var claims = new List<Claim>
         {
-            new(ClaimTypes.NameIdentifier, userId),
-            new(ClaimTypes.Email, email),
-            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new(JwtRegisteredClaimNames.Iat,
+            new Claim("sub", userId),  // subject
+            new Claim("email", email),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new Claim(JwtRegisteredClaimNames.Iat,
                 DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(),
                 ClaimValueTypes.Integer64)
         };
 
-        // Her rolü ayrı claim olarak ekle
-        claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
+        // Rolleri "role" claim'i olarak ekle (KıSA FORMAT)
+        foreach (var role in roles)
+        {
+            claims.Add(new Claim("role", role));
+        }
 
         var token = new JwtSecurityToken(
             issuer: jwtSettings["Issuer"],
@@ -58,7 +57,6 @@ public class JwtTokenService : ITokenService
 
     public string GenerateRefreshToken()
     {
-        // Kriptografik güçlü rastgele token (SHA256 tabanlı)
         var bytes = RandomNumberGenerator.GetBytes(64);
         return Convert.ToBase64String(bytes);
     }
@@ -76,8 +74,10 @@ public class JwtTokenService : ITokenService
             ValidAudience = jwtSettings["Audience"],
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
-            // Süresi dolmuş token'lara izin ver — refresh akışı için gerekli
-            ValidateLifetime = false
+            ValidateLifetime = false,
+            // ÖNEMLİ: Claim type'ları belirt
+            RoleClaimType = "role",
+            NameClaimType = "sub"
         };
 
         var handler = new JwtSecurityTokenHandler();

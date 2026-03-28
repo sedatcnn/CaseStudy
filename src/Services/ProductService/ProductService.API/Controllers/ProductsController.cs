@@ -34,7 +34,7 @@ public class ProductsController : ControllerBase
 
     /// <summary> Yeni ürün ekler (Sadece Admin ve Manager) </summary>
     [HttpPost]
-    [Authorize(Policy = "ManagerOrAdmin")]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> AddProduct([FromBody] AddProductRequest request)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
@@ -46,7 +46,7 @@ public class ProductsController : ControllerBase
 
     /// <summary> Ürün bilgilerini günceller </summary>
     [HttpPut("{id:guid}")]
-    [Authorize(Policy = "ManagerOrAdmin")]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> UpdateProduct(Guid id, [FromBody] UpdateProductRequest request)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
