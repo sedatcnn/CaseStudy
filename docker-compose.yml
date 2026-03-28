@@ -57,8 +57,6 @@ services:
       - JwtSettings__SecretKey=${JWT_SECRET_KEY}
       - JwtSettings__Issuer=KayraExport.AuthService
       - JwtSettings__Audience=KayraExport.Clients
-      - SeedAdmin__Email=${SEED_ADMIN_EMAIL}
-      - SeedAdmin__Password=${SEED_ADMIN_PASSWORD}
     ports:
       - "5001:8080"
     depends_on:
@@ -88,6 +86,30 @@ services:
       sqlserver:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - kayra-network
+
+  log-service:
+    build:
+      context: .
+      dockerfile: src/Services/LogService/LogService.API/Dockerfile
+    container_name: kayra-log-service
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=LogDb;User Id=sa;Password=${SQL_PASSWORD};TrustServerCertificate=True;
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Username=${RABBITMQ_USER}
+      - RabbitMQ__Password=${RABBITMQ_PASS}
+      - JwtSettings__SecretKey=${JWT_SECRET_KEY}
+      - JwtSettings__Issuer=KayraExport.AuthService
+      - JwtSettings__Audience=KayraExport.Clients
+    ports:
+      - "5003:8080"
+    depends_on:
+      sqlserver:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
