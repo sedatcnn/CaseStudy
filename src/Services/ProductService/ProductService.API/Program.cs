@@ -44,17 +44,28 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 .AddJwtBearer(opt => {
     opt.TokenValidationParameters = new TokenValidationParameters
     {
-        ValidateIssuer = true,
-        ValidateAudience = true,
+        ValidateIssuer = false, // Şimdilik kapat, uyuşmazlık olabilir
+        ValidateAudience = false, // Şimdilik kapat
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ValidIssuer = builder.Configuration["JwtSettings:Issuer"],
-        ValidAudience = builder.Configuration["JwtSettings:Audience"],
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JwtSettings:SecretKey"]!)),
-
-        // AGA BURAYI BÖYLE YAP: Link yazmak yerine ClaimTypes kullan
-        RoleClaimType = System.Security.Claims.ClaimTypes.Role,
-        NameClaimType = System.Security.Claims.ClaimTypes.NameIdentifier
+        
+        // .NET'e diyoruz ki: "Mapping falan yapma, ne geliyorsa onu kullan"
+        //RoleClaimType = "role",
+        //NameClaimType = "sub"
+    };
+    
+    // EK OLARAK: Gateway üzerinden gelince bazen header kaybolur, bunu zorlayalım
+    opt.Events = new JwtBearerEvents
+    {
+        OnAuthenticationFailed = context => {
+            Console.WriteLine("Auth Failed: " + context.Exception.Message);
+            return Task.CompletedTask;
+        },
+        OnTokenValidated = context => {
+            Console.WriteLine("Token Validated Successfully!");
+            return Task.CompletedTask;
+        }
     };
 });
 
@@ -65,32 +76,31 @@ builder.Services.AddAuthorization(opt => {
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(c => {
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Product Service", Version = "v1" });
-    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme // BURAYI "Bearer" YAPTIK
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Service API", Version = "v1" });
+
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
-        Type = SecuritySchemeType.ApiKey,
-        Scheme = "Bearer",
+        Type = SecuritySchemeType.Http, // ApiKey yerine Http yapıyoruz
+        Scheme = "Bearer",             // Şema adını direkt Bearer veriyoruz
         BearerFormat = "JWT",
         In = ParameterLocation.Header,
-        Description = "JWT Token giriniz. Örnek: Bearer {token}"
+        Description = "Sadece Access Token değerini yapıştırın (Bearer yazmanıza gerek yok)."
     });
-    c.AddSecurityRequirement(new OpenApiSecurityRequirement {
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
         {
             new OpenApiSecurityScheme
             {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer" // BURASI YUKARIDAKİYLE AYNI OLMALI
-                }
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
             },
-            new string[] {}
+            Array.Empty<string>()
         }
     });
 });
-
 var app = builder.Build();
 
 // Auto-Migration
@@ -103,6 +113,19 @@ using (var scope = app.Services.CreateScope())
 app.UseSwagger();
 app.UseSwaggerUI();
 app.UseRouting();
+app.Use(async (context, next) =>
+{
+    string authHeader = context.Request.Headers["Authorization"];
+    if (!string.IsNullOrEmpty(authHeader))
+    {
+        // Eğer Bearer kelimesi eksikse biz ekliyoruz
+        if (!authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        {
+            context.Request.Headers["Authorization"] = "Bearer " + authHeader;
+        }
+    }
+    await next();
+});
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

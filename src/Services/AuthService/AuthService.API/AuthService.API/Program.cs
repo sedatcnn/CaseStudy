@@ -75,20 +75,25 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Auth Service API", Version = "v1" });
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Service API", Version = "v1" });
+
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
-        Description = "JWT Authorization header. Örnek: 'Bearer {token}'",
         Name = "Authorization",
+        Type = SecuritySchemeType.Http, // ApiKey yerine Http yapıyoruz
+        Scheme = "Bearer",             // Şema adını direkt Bearer veriyoruz
+        BearerFormat = "JWT",
         In = ParameterLocation.Header,
-        Type = SecuritySchemeType.ApiKey,
-        Scheme = "Bearer"
+        Description = "Sadece Access Token değerini yapıştırın (Bearer yazmanıza gerek yok)."
     });
+
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
-            new OpenApiSecurityScheme { Reference = new OpenApiReference
-                { Type = ReferenceType.SecurityScheme, Id = "Bearer" } },
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+            },
             Array.Empty<string>()
         }
     });

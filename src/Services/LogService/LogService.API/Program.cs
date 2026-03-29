@@ -75,17 +75,16 @@ builder.Services.AddEndpointsApiExplorer();
 // Bunu bul ve değiştir:
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Log Service API", Version = "v1" });
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Service API", Version = "v1" });
 
-    // --- BU KISIM AUTHORIZE BUTONUNU GETİRİR ---
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
-        Type = SecuritySchemeType.ApiKey,
-        Scheme = "Bearer",
+        Type = SecuritySchemeType.Http, // ApiKey yerine Http yapıyoruz
+        Scheme = "Bearer",             // Şema adını direkt Bearer veriyoruz
         BearerFormat = "JWT",
         In = ParameterLocation.Header,
-        Description = "JWT Token giriniz. Örnek: Bearer {token}"
+        Description = "Sadece Access Token değerini yapıştırın (Bearer yazmanıza gerek yok)."
     });
 
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -93,19 +92,21 @@ builder.Services.AddSwaggerGen(c =>
         {
             new OpenApiSecurityScheme
             {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
             },
-            new string[] {}
+            Array.Empty<string>()
         }
     });
-}); builder.Services.AddHealthChecks();
+});
+builder.Services.AddHealthChecks();
 var app = builder.Build();
 
-// if bloğunu komple sil, şu iki satır kalsın:
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<LogService.Infrastructure.Persistence.LogDbContext>();
+    db.Database.Migrate();
+    Console.WriteLine("--- LogDb KONTROL EDİLDİ VE OLUŞTURULDU ---");
+}
 app.UseSwagger();
 app.UseSwaggerUI(c => {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "LogService API v1");

@@ -57,6 +57,11 @@ services:
       - JwtSettings__SecretKey=${JWT_SECRET_KEY}
       - JwtSettings__Issuer=KayraExport.AuthService
       - JwtSettings__Audience=KayraExport.Clients
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     ports:
       - "5001:8080"
     depends_on:
@@ -80,6 +85,11 @@ services:
       - RabbitMQ__Host=rabbitmq
       - RabbitMQ__Username=${RABBITMQ_USER}
       - RabbitMQ__Password=${RABBITMQ_PASS}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     ports:
       - "5002:8080"
     depends_on:
@@ -106,6 +116,11 @@ services:
       - JwtSettings__SecretKey=${JWT_SECRET_KEY}
       - JwtSettings__Issuer=KayraExport.AuthService
       - JwtSettings__Audience=KayraExport.Clients
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     ports:
       - "5003:8080"
     depends_on:
@@ -115,6 +130,22 @@ services:
         condition: service_healthy
     networks:
       - kayra-network
+
+  apigateway:
+      build:
+        context: .
+        dockerfile: src/Gateway/ApiGateway/Dockerfile
+      container_name: kayra-api-gateway
+      environment:
+        - ASPNETCORE_ENVIRONMENT=Production
+      ports:
+        - "5000:8080"
+      depends_on:
+        auth-service: { condition: service_started }
+        product-service: { condition: service_started }
+        log-service: { condition: service_started }
+      networks:
+        - kayra-network
 
 networks:
   kayra-network:
