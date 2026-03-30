@@ -8,7 +8,6 @@
 ## 📐 Mimari Genel Bakış (Hedeflenen Yapı)
 
 Şu an projenin ilk aşaması olan **Auth Service** tamamlanmıştır. Sistem tamamlandığında aşağıdaki yapıda olacaktır:
-
 ```
                         ┌─────────────────────────────────────────┐
 Internet ──────────────►│          API Gateway (YARP)             │
@@ -28,7 +27,6 @@ Internet ──────────────►│          API Gateway (
                     └─────────────┘
 ```
 Her servis **Onion Mimari** ile katmanlıdır:
-
 ```
 ┌─────────────────────────────┐
 │         API Layer           │  ← Controllers, Middleware, Program.cs
@@ -40,6 +38,7 @@ Her servis **Onion Mimari** ile katmanlıdır:
 │   Infrastructure Layer      │  ← EF Core, Redis, RabbitMQ, JWT
 └─────────────────────────────┘
 ```
+
 ### Mevcut Durum: Auth Service
 - **Kimlik Doğrulama:** Microsoft Identity framework kullanılarak kuruldu.
 - **Yetkilendirme:** Role-based (Admin, User, Manager) JWT Bearer Token.
@@ -76,9 +75,12 @@ Bağımlılıklar içe doğrudur. Domain katmanı hiçbir dış kütüphaneye ba
 
 ### 1. Repo'yu Klonla ve Branch'e Geç
 ```bash
-git clone [https://github.com/sedatcnn/CaseStudy.git](https://github.com/sedatcnn/CaseStudy.git)
+git clone https://github.com/sedatcnn/CaseStudy.git
 cd CaseStudy
 git checkout test/v1.0.0
+```
+
+---
 
 ## 📦 Genişletilmiş Servis Yapısı (Product & Log Services)
 
@@ -213,47 +215,7 @@ public async Task<IActionResult> AddProduct([FromBody] AddProductRequest request
 [AllowAnonymous]
 public async Task<IActionResult> GetProducts() { }
 ```
-
 ---
-
-## 💡 Önemli Geliştirici Notları
-
-### LogService Mimari Kararı
-
-**LogService** başlangıçta MongoDB olarak planlanmış, ancak aşağıdaki nedenlerle **MSSQL** mimarisine taşınmıştır:
-
-- **Operasyonel Basitlik:** Tek veritabanı teknolojisi ile daha az karmaşıklık
-- **İlişkisel Sorgulama:** Loglar üzerinde kompleks JOIN ve aggregation sorguları
-- **Tutarlılık:** Tüm servisler aynı veritabanı altyapısını kullanarak DevOps yükü azaltılmıştır
-- **CorrelationId İndexleme:** MSSQL'in güçlü indexing özellikleri ile hızlı log arama
-
-### Redis Cache Stratejisi
-
-Product Service'de aşağıdaki cache stratejisi uygulanmıştır:
-```csharp
-// Cache-Aside Pattern
-public async Task<List<ProductDto>> GetProducts(int page, int pageSize)
-{
-    var cacheKey = $"products:page:{page}:size:{pageSize}";
-    
-    // 1. Önce cache'e bak
-    var cached = await _cache.GetAsync(cacheKey);
-    if (cached != null) return cached;
-    
-    // 2. Cache'de yoksa DB'den çek
-    var products = await _repository.GetPagedAsync(page, pageSize);
-    
-    // 3. Cache'e kaydet (TTL: 5 dakika)
-    await _cache.SetAsync(cacheKey, products, TimeSpan.FromMinutes(5));
-    
-    return products;
-}
-```
-
-**Cache Invalidation:** Ürün ekleme/güncelleme/silme işlemlerinde ilgili cache anahtarları temizlenir.
-
----
-
 ## 🧪 Test Senaryosu (End-to-End)
 
 ### Adım 1: Kullanıcı Kaydı ve Giriş
@@ -325,9 +287,62 @@ docker-compose down
 docker-compose up --build
 ```
 
-### 401 Unauthorized Hatası
+### 401 Unauthorized Hatası - ✅ ÇÖZÜLDÜ
 
-Product ve Log servislerine Authorize olsanız bile 401 hatası alıyorum en çözmeye çalıacağım 
+**Sorun:** Microsoft Identity'nin uzun URI claim formatı (`http://schemas.microsoft.com/ws/2008/06/identity/claims/role`) ile JWT Bearer middleware'inin kısa claim formatı arasında uyumsuzluk.
+
+**Çözüm:**
+
+1. **Auth Service** token oluştururken kısa format kullanır:
+```csharp
+claims.Add(new Claim("role", role));  // "role" - kısa format
+```
+
+2. **Product Service** token okurken aynı formatı bekler:
+```csharp
+JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();  // Microsoft'un otomatik dönüşümünü kapat
+opt.TokenValidationParameters = new TokenValidationParameters
+{
+    RoleClaimType = "role",  // Kısa format
+    NameClaimType = "sub"
+};
+```
+
+3. **Swagger yapılandırması** düzeltildi:
+```csharp
+Type = SecuritySchemeType.Http,  // ApiKey yerine Http
+Scheme = "Bearer"  // Otomatik "Bearer " prefix ekler
+```
+
+**Sonuç:** Servisler arası JWT authentication sorunsuz çalışıyor.
 
 ---
 
+## 🌐 API Gateway (YARP) Entegrasyonu
+
+Projenin son aşamasında **YARP (Yet Another Reverse Proxy)** kullanılarak API Gateway katmanı eklenmiştir.
+
+### Özellikler
+
+- **Unified Entry Point:** Tüm servislere tek bir endpoint (`http://localhost:5000`) üzerinden erişim
+- **Dynamic Routing:** Gelen istekleri ilgili mikroservise yönlendirir
+- **Load Balancing:** Gelecekte horizontal scaling için hazır altyapı
+- **CORS Yönetimi:** Merkezi CORS politikası
+
+### Gateway Routing Tablosu
+
+| Path | Hedef Servis | Port |
+|------|--------------|------|
+| `/auth/**` | Auth Service | 5001 |
+| `/products/**` | Product Service | 5002 |
+| `/logs/**` | Log Service | 5003 |
+
+### Kullanım Örneği
+```bash
+# Eski yöntem (direkt servis)
+curl http://localhost:5001/api/v1/auth/login
+
+# Yeni yöntem (Gateway üzerinden)
+curl http://localhost:5000/auth/api/v1/auth/login
+```
+---
